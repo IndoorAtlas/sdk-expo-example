@@ -1,10 +1,8 @@
 import { StatusBar } from 'expo-status-bar';
 import { useState } from 'react';
 import { StyleSheet, Text, View, Pressable } from 'react-native';
-import ExpoCustomNativeModule from './modules/expo-custom-native';
 import FullScreenMapView from './views/FullScreenMapView';
 
-const nativeGreeting = ExpoCustomNativeModule.hello();
 const IA_API_KEY = 'f2f120cc-2070-478d-9305-1b36b220f727';
 
 export default function App() {
@@ -21,14 +19,8 @@ export default function App() {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Expo + Custom Android Native Code</Text>
-      <Text style={styles.subtitle}>Native hello(): {nativeGreeting}</Text>
-      <Pressable
-        style={styles.button}
-        onPress={() => ExpoCustomNativeModule.setValueAsync(`Tapped at ${new Date().toISOString()}`)}
-      >
-        <Text style={styles.buttonText}>Call native AsyncFunction</Text>
-      </Pressable>
+      <Text style={styles.title}>Expo + IndoorAtlas Map Demo</Text>
+      <Text style={styles.subtitle}>Open the map to start indoor positioning.</Text>
       <Pressable style={styles.secondaryButton} onPress={() => setActiveView('map')}>
         <Text style={styles.buttonText}>Open Full Screen Map</Text>
       </Pressable>
@@ -55,13 +47,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     marginBottom: 20,
     textAlign: 'center',
-  },
-  button: {
-    backgroundColor: '#232323',
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderRadius: 8,
-    marginBottom: 10,
   },
   secondaryButton: {
     backgroundColor: '#1D4ED8',

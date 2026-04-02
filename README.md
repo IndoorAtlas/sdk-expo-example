@@ -1,6 +1,6 @@
 # expo-sdk-example
 
-Minimal React Native app built with Expo, including a local custom native Android module.
+Minimal React Native app built with Expo with IndoorAtlas-based positioning and a full-screen map view.
 
 ## Requirements
 
@@ -32,7 +32,7 @@ Because this app includes native Android code, use a development build (not Expo
 
    `npm run run:android`
 
-Native code changes in `modules/expo-custom-native/android/` require rebuilding the app.
+Native Android/iOS changes require rebuilding the development app.
 
 ## IndoorAtlas integration
 
@@ -66,8 +66,7 @@ On macOS, run CocoaPods install before building iOS.
 
 ## Project files
 
-- `App.js` – home view + map view + IndoorAtlas initialization button
+- `App.js` – home view + map view entry
 - `app.json` – Expo configuration
 - `index.js` – app entry point
-- `modules/expo-custom-native/` – local custom native module (Kotlin + TS bridge)
 - `views/FullScreenMapView.js` – full-screen OpenStreetMap view using `react-native-webview` (no API key)
