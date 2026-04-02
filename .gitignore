@@ -43,3 +43,6 @@ yarn-error.*
 # local Expo modules build output
 modules/**/android/build/
 modules/**/build/
+
+# IDE tooling
+.metals/

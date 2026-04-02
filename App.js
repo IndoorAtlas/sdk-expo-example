@@ -5,6 +5,7 @@ import ExpoCustomNativeModule from './modules/expo-custom-native';
 import FullScreenMapView from './views/FullScreenMapView';
 
 const nativeGreeting = ExpoCustomNativeModule.hello();
+const IA_API_KEY = 'f2f120cc-2070-478d-9305-1b36b220f727';
 
 export default function App() {
   const [activeView, setActiveView] = useState('home');
@@ -12,7 +13,7 @@ export default function App() {
   if (activeView === 'map') {
     return (
       <>
-        <FullScreenMapView onBack={() => setActiveView('home')} />
+        <FullScreenMapView iaApiKey={IA_API_KEY} onBack={() => setActiveView('home')} />
         <StatusBar style="light" />
       </>
     );
@@ -67,6 +68,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 10,
     borderRadius: 8,
+    marginBottom: 10,
   },
   buttonText: {
     color: '#fff',
