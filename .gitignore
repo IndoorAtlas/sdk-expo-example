@@ -46,3 +46,4 @@ modules/**/build/
 
 # IDE tooling
 .metals/
+.vscode/
