@@ -3,12 +3,14 @@ import { useState } from 'react';
 import { StyleSheet, Text, View, Pressable, TextInput } from 'react-native';
 import FullScreenMapView from './views/FullScreenMapView';
 
-const DEFAULT_IA_API_KEY = 'f2f120cc-2070-478d-9305-1b36b220f727';
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 export default function App() {
   const [activeView, setActiveView] = useState('home');
-  const [iaApiKey, setIaApiKey] = useState(DEFAULT_IA_API_KEY);
-  const hasApiKey = iaApiKey.trim().length > 0;
+  const [iaApiKey, setIaApiKey] = useState('');
+  const normalizedApiKey = iaApiKey.trim();
+  const hasApiKey = normalizedApiKey.length > 0;
+  const hasValidApiKeyFormat = UUID_REGEX.test(normalizedApiKey);
 
   if (activeView === 'map') {
     return (
@@ -25,17 +27,20 @@ export default function App() {
       <Text style={styles.subtitle}>Enter your IndoorAtlas API key before opening the map.</Text>
       <Text style={styles.inputLabel}>IndoorAtlas API key</Text>
       <TextInput
-        style={styles.apiKeyInput}
+        style={[styles.apiKeyInput, hasApiKey && !hasValidApiKeyFormat && styles.apiKeyInputInvalid]}
         value={iaApiKey}
         onChangeText={setIaApiKey}
         placeholder="Enter IndoorAtlas API key"
         autoCapitalize="none"
         autoCorrect={false}
       />
+      {hasApiKey && !hasValidApiKeyFormat && (
+        <Text style={styles.inputErrorText}>API key must be a valid UUID (xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx).</Text>
+      )}
       <Pressable
-        style={[styles.secondaryButton, !hasApiKey && styles.secondaryButtonDisabled]}
+        style={[styles.secondaryButton, !hasValidApiKeyFormat && styles.secondaryButtonDisabled]}
         onPress={() => setActiveView('map')}
-        disabled={!hasApiKey}
+        disabled={!hasValidApiKeyFormat}
       >
         <Text style={styles.buttonText}>Open Full Screen Map</Text>
       </Pressable>
@@ -76,6 +81,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 10,
     marginBottom: 16,
+  },
+  apiKeyInputInvalid: {
+    borderColor: '#DC2626',
+  },
+  inputErrorText: {
+    width: '100%',
+    color: '#DC2626',
+    marginTop: -10,
+    marginBottom: 12,
+    fontSize: 12,
   },
   secondaryButton: {
     backgroundColor: '#1D4ED8',
