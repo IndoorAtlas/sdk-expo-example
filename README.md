@@ -1,6 +1,6 @@
 # expo-sdk-example
 
-Minimal [Expo](https://docs.expo.dev/) application showcasing IndoorAtlas positioning.
+Minimal [Expo](https://docs.expo.dev/) application showcasing IndoorAtlas positioning using the [IndoorAtlas React Native plugin](https://github.com/IndoorAtlas/cordova-plugin/tree/react-native).
 
 ## Requirements
 
