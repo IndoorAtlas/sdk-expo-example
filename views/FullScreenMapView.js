@@ -1,74 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
 import { StyleSheet, View, Pressable, Text } from 'react-native';
+import { Asset } from 'expo-asset';
 import { IndoorAtlas } from 'react-native-indooratlas';
 import { WebView } from 'react-native-webview';
 
 const DEFAULT_LATITUDE = 60.1699;
 const DEFAULT_LONGITUDE = 24.9384;
-
-const MAP_HTML = `
-<!doctype html>
-<html>
-  <head>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <style>
-      html, body, #map {
-        height: 100%;
-        width: 100%;
-        margin: 0;
-        padding: 0;
-      }
-    </style>
-  </head>
-  <body>
-    <div id="map"></div>
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script>
-      let map;
-      let marker;
-      let pendingPosition = null;
-
-      function ensureMap() {
-        if (map) return;
-
-        map = L.map('map', {
-          zoomControl: true,
-          attributionControl: true,
-        }).setView([${DEFAULT_LATITUDE}, ${DEFAULT_LONGITUDE}], 18);
-
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-          maxZoom: 20,
-          attribution: '&copy; OpenStreetMap contributors',
-        }).addTo(map);
-
-        marker = L.marker([${DEFAULT_LATITUDE}, ${DEFAULT_LONGITUDE}]).addTo(map);
-
-        if (pendingPosition) {
-          const [lat, lon] = pendingPosition;
-          window.updatePosition(lat, lon);
-          pendingPosition = null;
-        }
-      }
-
-      window.updatePosition = function updatePosition(lat, lon) {
-        if (typeof lat !== 'number' || typeof lon !== 'number') return;
-
-        if (!map || !marker) {
-          pendingPosition = [lat, lon];
-          return;
-        }
-
-        const next = [lat, lon];
-        marker.setLatLng(next);
-        map.panTo(next, { animate: true, duration: 0.35 });
-      }
-
-      document.addEventListener('DOMContentLoaded', ensureMap);
-    </script>
-  </body>
-</html>
-`;
+const MAP_HTML_URI = Asset.fromModule(require('./map.html')).uri;
 
 export default function FullScreenMapView({ iaApiKey, onBack }) {
   const webViewRef = useRef(null);
@@ -91,6 +29,36 @@ export default function FullScreenMapView({ iaApiKey, onBack }) {
     webViewRef.current.injectJavaScript(script);
   };
 
+  const clearFloorPlanOverlay = () => {
+    if (!webViewRef.current) return;
+
+    webViewRef.current.injectJavaScript('window.clearFloorPlanOverlay(); true;');
+  };
+
+  const injectFloorPlanOverlay = (url, topLeft, topRight, bottomLeft, bitmapWidth, bitmapHeight) => {
+    if (!webViewRef.current) return;
+
+    const script = `window.setFloorPlanOverlay(${JSON.stringify(url)}, ${JSON.stringify(topLeft.latitude)}, ${JSON.stringify(topLeft.longitude)}, ${JSON.stringify(topRight.latitude)}, ${JSON.stringify(topRight.longitude)}, ${JSON.stringify(bottomLeft.latitude)}, ${JSON.stringify(bottomLeft.longitude)}, ${JSON.stringify(bitmapWidth)}, ${JSON.stringify(bitmapHeight)}); true;`;
+    webViewRef.current.injectJavaScript(script);
+  };
+
+  const parseCorner = (corner) => {
+    if (Array.isArray(corner) && corner.length >= 2) {
+      // IndoorAtlas corner array format is [longitude, latitude]
+      return { longitude: Number(corner[0]), latitude: Number(corner[1]) };
+    }
+
+    if (corner && typeof corner === 'object') {
+      const latitude = Number(corner.latitude ?? corner.lat);
+      const longitude = Number(corner.longitude ?? corner.lng ?? corner.lon);
+      if (Number.isFinite(latitude) && Number.isFinite(longitude)) {
+        return { latitude, longitude };
+      }
+    }
+
+    return null;
+  };
+
   const startPositioning = () => {
     try {
       if (!iaApiKey || iaApiKey.startsWith('REPLACE_')) {
@@ -101,10 +69,10 @@ export default function FullScreenMapView({ iaApiKey, onBack }) {
 
       IndoorAtlas.initialize({ apiKey: iaApiKey })
         .onStatusChanged((status) => {
-          console.log('[IndoorAtlas] map status changed', status);
+          console.log('[IndoorAtlas] map status changed', JSON.stringify(status));
         })
         .watchPosition((position) => {
-          console.log('[IndoorAtlas] position update', position);
+          console.log('[IndoorAtlas] position update', JSON.stringify(position));
 
           const latitude = position?.coords?.latitude;
           const longitude = position?.coords?.longitude;
@@ -115,6 +83,36 @@ export default function FullScreenMapView({ iaApiKey, onBack }) {
           }
 
           injectPositionUpdate(latitude, longitude);
+        })
+        .watchFloorPlan((floorPlan) => {
+          console.log('[IndoorAtlas] floor plan event', JSON.stringify(floorPlan));
+
+          if (!floorPlan || !floorPlan.url) {
+            clearFloorPlanOverlay();
+            return;
+          }
+
+          const topLeft = parseCorner(floorPlan.topLeft);
+          const topRight = parseCorner(floorPlan.topRight);
+          const bottomLeft = parseCorner(floorPlan.bottomLeft);
+
+          if (!topLeft || !topRight || !bottomLeft) {
+            console.log('[IndoorAtlas] floor plan overlay skipped: missing rotated corner coordinates', floorPlan);
+            clearFloorPlanOverlay();
+            return;
+          }
+
+          injectFloorPlanOverlay(
+            floorPlan.url,
+            topLeft,
+            topRight,
+            bottomLeft,
+            Number(floorPlan.bitmapWidth),
+            Number(floorPlan.bitmapHeight)
+          );
+        })
+        .watchVenue((venue) => {
+          console.log('[IndoorAtlas] venue event', JSON.stringify(venue));
         });
 
       setPositioningState('running');
@@ -139,7 +137,7 @@ export default function FullScreenMapView({ iaApiKey, onBack }) {
       <WebView
         ref={webViewRef}
         style={styles.map}
-        source={{ html: MAP_HTML }}
+        source={{ uri: MAP_HTML_URI }}
         originWhitelist={["*"]}
         javaScriptEnabled
         domStorageEnabled

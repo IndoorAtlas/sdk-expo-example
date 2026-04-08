@@ -1,0 +1,187 @@
+<!doctype html>
+<html>
+  <head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+      html, body, #map {
+        height: 100%;
+        width: 100%;
+        margin: 0;
+        padding: 0;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="map"></div>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+      let map;
+      let marker;
+      let floorPlanOverlayImage;
+      let floorPlanOverlayData;
+      let pendingPosition = null;
+      let pendingFloorPlan = null;
+
+      const DEFAULT_LATITUDE = 60.1699;
+      const DEFAULT_LONGITUDE = 24.9384;
+
+      const onMapChanged = () => {
+        renderFloorPlanOverlay();
+      };
+
+      function ensureMap() {
+        if (map) return;
+
+        map = L.map('map', {
+          zoomControl: true,
+          attributionControl: true,
+        }).setView([DEFAULT_LATITUDE, DEFAULT_LONGITUDE], 18);
+
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+          maxZoom: 20,
+          attribution: '&copy; OpenStreetMap contributors',
+        }).addTo(map);
+
+        marker = L.marker([DEFAULT_LATITUDE, DEFAULT_LONGITUDE]).addTo(map);
+
+        if (pendingPosition) {
+          const [lat, lon] = pendingPosition;
+          window.updatePosition(lat, lon);
+          pendingPosition = null;
+        }
+
+        if (pendingFloorPlan) {
+          window.setFloorPlanOverlay(...pendingFloorPlan);
+          pendingFloorPlan = null;
+        }
+      }
+
+      window.updatePosition = function updatePosition(lat, lon) {
+        if (typeof lat !== 'number' || typeof lon !== 'number') return;
+
+        if (!map || !marker) {
+          pendingPosition = [lat, lon];
+          return;
+        }
+
+        const next = [lat, lon];
+        marker.setLatLng(next);
+        map.panTo(next, { animate: true, duration: 0.35 });
+      }
+
+      function ensureFloorPlanOverlayImage() {
+        if (!map) return null;
+
+        if (!floorPlanOverlayImage) {
+          floorPlanOverlayImage = document.createElement('img');
+          floorPlanOverlayImage.style.position = 'absolute';
+          floorPlanOverlayImage.style.transformOrigin = '0 0';
+          floorPlanOverlayImage.style.pointerEvents = 'none';
+          floorPlanOverlayImage.style.opacity = '0.65';
+          floorPlanOverlayImage.style.willChange = 'transform';
+          map.getPanes().overlayPane.appendChild(floorPlanOverlayImage);
+
+          floorPlanOverlayImage.addEventListener('load', renderFloorPlanOverlay);
+        }
+
+        return floorPlanOverlayImage;
+      }
+
+      function renderFloorPlanOverlay() {
+        if (!map || !floorPlanOverlayData) return;
+
+        const image = ensureFloorPlanOverlayImage();
+        if (!image) return;
+
+        const p0 = map.latLngToLayerPoint(floorPlanOverlayData.topLeft);
+        const p1 = map.latLngToLayerPoint(floorPlanOverlayData.topRight);
+        const p2 = map.latLngToLayerPoint(floorPlanOverlayData.bottomLeft);
+
+        const width = floorPlanOverlayData.bitmapWidth || image.naturalWidth || 1;
+        const height = floorPlanOverlayData.bitmapHeight || image.naturalHeight || 1;
+
+        if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) {
+          return;
+        }
+
+        const a = (p1.x - p0.x) / width;
+        const b = (p1.y - p0.y) / width;
+        const c = (p2.x - p0.x) / height;
+        const d = (p2.y - p0.y) / height;
+        const e = p0.x;
+        const f = p0.y;
+
+        image.style.width = width + 'px';
+        image.style.height = height + 'px';
+        image.style.transform = 'matrix(' + [a, b, c, d, e, f].join(',') + ')';
+      }
+
+      window.clearFloorPlanOverlay = function clearFloorPlanOverlay() {
+        floorPlanOverlayData = undefined;
+
+        if (map) {
+          map.off('zoom viewreset move resize', onMapChanged);
+        }
+
+        if (floorPlanOverlayImage) {
+          floorPlanOverlayImage.remove();
+          floorPlanOverlayImage = undefined;
+        }
+      }
+
+      window.setFloorPlanOverlay = function setFloorPlanOverlay(url, tlLat, tlLng, trLat, trLng, blLat, blLng, bitmapWidth, bitmapHeight) {
+        if (
+          typeof url !== 'string' ||
+          typeof tlLat !== 'number' ||
+          typeof tlLng !== 'number' ||
+          typeof trLat !== 'number' ||
+          typeof trLng !== 'number' ||
+          typeof blLat !== 'number' ||
+          typeof blLng !== 'number'
+        ) {
+          return;
+        }
+
+        if (!map) {
+          pendingFloorPlan = [url, tlLat, tlLng, trLat, trLng, blLat, blLng, bitmapWidth, bitmapHeight];
+          return;
+        }
+
+        const topLeft = L.latLng(tlLat, tlLng);
+        const topRight = L.latLng(trLat, trLng);
+        const bottomLeft = L.latLng(blLat, blLng);
+
+        const bottomRight = L.latLng(
+          bottomLeft.lat + (topRight.lat - topLeft.lat),
+          bottomLeft.lng + (topRight.lng - topLeft.lng)
+        );
+
+        floorPlanOverlayData = {
+          url,
+          topLeft,
+          topRight,
+          bottomLeft,
+          bottomRight,
+          bitmapWidth: Number.isFinite(bitmapWidth) ? bitmapWidth : undefined,
+          bitmapHeight: Number.isFinite(bitmapHeight) ? bitmapHeight : undefined,
+        };
+
+        const image = ensureFloorPlanOverlayImage();
+        if (image && image.src !== url) {
+          image.src = url;
+        }
+
+        map.off('zoom viewreset move resize', onMapChanged);
+        map.on('zoom viewreset move resize', onMapChanged);
+
+        renderFloorPlanOverlay();
+
+        const bounds = L.latLngBounds([topLeft, topRight, bottomLeft, bottomRight]);
+        map.fitBounds(bounds, { padding: [24, 24] });
+      }
+
+      document.addEventListener('DOMContentLoaded', ensureMap);
+    </script>
+  </body>
+</html>

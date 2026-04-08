@@ -64,6 +64,8 @@ An `ios/` native folder has been generated and IndoorAtlas pod entries were adde
 
 On macOS, run CocoaPods install before building iOS.
 
+TODO: Verify that everything works on iOS.
+
 ## Project files
 
 - `App.js` – home view + map view entry
