@@ -2,6 +2,7 @@
   "expo": {
     "name": "expo-sdk-example",
     "slug": "expo-sdk-example",
+    "scheme": "com.indooratlas.exposdkexample",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -20,7 +21,7 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-  "package": "com.indooratlas.exposdkexample"
+      "package": "com.indooratlas.exposdkexample"
     },
     "web": {
       "favicon": "./assets/favicon.png"
